@@ -1,0 +1,22 @@
+data:
+  raw_xml: "data/raw/Restaurants_Train.xml"
+  ate_train: "data/processed/ate_train.jsonl"
+  asc_train: "data/processed/asc_train.csv"
+
+artifacts:
+  ate_model: "artifacts/crf_ate_model.joblib"
+  asc_model: "artifacts/logreg_asc_pipeline.joblib"
+
+crf_params:
+  algorithm: "lbfgs"
+  c1: 0.1          # L1 regularization strength for feature sparsity
+  c2: 0.1          # L2 regularization strength to prevent overfitting
+  max_iterations: 150
+  all_possible_transitions: true
+
+asc_params:
+  penalty: "l2"
+  C: 1.0
+  max_iter: 500
+  class_weight: "balanced"
+  random_state: 42
