@@ -1,14 +1,35 @@
+from typing import List, Optional
 from pydantic import BaseModel, Field
-from typing import List
 
-class AnalyzeRequest(BaseModel):
-    text: str = Field(..., example="The pizza was delicious, but the cashier was rude.")
 
-class AspectSentimentResult(BaseModel):
-    aspect: str
-    sentiment: str
-    confidence: float
+class TextAnalysisRequest(BaseModel):
+    text: str = Field(
+        ...,
+        min_length=2,
+        max_length=2000,
+        description="The customer review or feedback sentence to analyze.",
+        json_schema_extra={
+            "example": "The crust is thin and crunchy, but the staff is aloof."
+        }
+    )
 
-class AnalyzeResponse(BaseModel):
+
+class AspectSpan(BaseModel):
+    term: str = Field(..., description="Extracted aspect entity.")
+    sentiment: str = Field(..., description="Predicted polarity: positive, negative, or neutral.")
+    confidence: float = Field(..., ge=0.0, le=1.0, description="Model prediction probability score.")
+    span: List[int] = Field(..., description="Character offsets [start_char, end_char].")
+    syntactic_modifiers: Optional[str] = Field(default="", description="Linguistic modifiers parsed from dependency tree.")
+    negated: bool = Field(default=False, description="Flag indicating if a negation particle governs this aspect.")
+
+
+class TextAnalysisResponse(BaseModel):
     text: str
-    aspects: List[AspectSentimentResult]
+    total_aspects: int
+    aspects: List[AspectSpan]
+
+
+class HealthCheckResponse(BaseModel):
+    status: str
+    models_loaded: bool
+    version: str

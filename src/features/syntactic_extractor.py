@@ -50,23 +50,19 @@ def extract_asc_features(text: str, aspect_term: str) -> Dict[str, Any]:
 
     if not aspect_tokens:
         return {
-            "aspect_lemma": aspect_term.lower(),
-            "head_lemma": "NONE",
-            "head_pos": "NONE",
             "modifiers": "",
             "has_negation": 0,
             "dep_signature": "NONE",
-            "context_bow": text.lower()
+            "head_pos": "NONE"
         }
 
-    # Use the root of the aspect span (last token in multi-word nominal compounds)
     target_node = aspect_tokens[-1]
     head_node = target_node.head
 
     modifiers: List[str] = []
     negated: bool = is_negated_node(target_node)
 
-    # 1. Direct children of the aspect term (e.g., "crunchy [crust]")
+    # 1. Direct children of the aspect term (e.g., "good [staff]")
     for child in target_node.children:
         if child not in aspect_tokens:
             if child.dep_ in MODIFIER_DEPS and child.pos_ in ("ADJ", "ADV", "VERB"):
@@ -74,7 +70,7 @@ def extract_asc_features(text: str, aspect_term: str) -> Dict[str, Any]:
             if is_negated_node(child):
                 negated = True
 
-    # 2. Modifiers attached to the common governor (e.g., "[crust] is crunchy")
+    # 2. Modifiers attached to the common governor (e.g., "[staff] is good")
     if head_node != target_node:
         if is_negated_node(head_node):
             negated = True
@@ -83,22 +79,20 @@ def extract_asc_features(text: str, aspect_term: str) -> Dict[str, Any]:
             if sibling not in aspect_tokens:
                 if sibling.dep_ in MODIFIER_DEPS and sibling.pos_ in ("ADJ", "ADV", "NOUN"):
                     modifiers.append(sibling.lemma_.lower())
-                    # Check conjunctions chained to the modifier (e.g., "fresh and delicious")
                     for conj in sibling.children:
                         if conj.dep_ == "conj" and conj.pos_ in ("ADJ", "ADV"):
                             modifiers.append(conj.lemma_.lower())
                 if is_negated_node(sibling):
                     negated = True
 
-    # 3. Construct a structural signature of the syntactic dependency
     dep_signature = f"{target_node.dep_}->{head_node.pos_}"
+    sorted_modifiers = " ".join(sorted(set(modifiers)))
 
     return {
-        "aspect_lemma": target_node.lemma_.lower(),
-        "head_lemma": head_node.lemma_.lower(),
-        "head_pos": head_node.pos_,
-        "modifiers": " ".join(sorted(set(modifiers))),
+        "modifiers": sorted_modifiers,
+        # Create explicit interaction terms so the model learns (modifier + negation) together
+        "mod_neg_interaction": f"NOT_{sorted_modifiers}" if negated and sorted_modifiers else sorted_modifiers,
         "has_negation": 1 if negated else 0,
         "dep_signature": dep_signature,
-        "context_bow": " ".join([t.lemma_.lower() for t in doc if not t.is_stop and not t.is_punct])
+        "head_pos": head_node.pos_
     }
